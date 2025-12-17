@@ -34,7 +34,7 @@ st.markdown(f"""
     }}
 
     /* 全局字体优化 */
-    html, body, [class*="st-"], .stApp, h1, h2, h3, h4, h5, h6, p, div, span, button, input, label {{
+    html, body, .stApp, h1, h2, h3, h4, h5, h6, p, div, span, button, input, label {{
         font-family: 'GlobalFont', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
     }}
     
