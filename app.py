@@ -79,7 +79,7 @@ col_header1, col_header2 = st.columns([1, 5])
 with col_header1:
     # 使用本地图片，如果不存在则使用 emoji
     if os.path.exists("static/logo.png"):
-        st.image("static/logo.png", width=80)
+        st.image("static/logo.png", width=150)
     else:
         st.markdown("# 🎓")
 with col_header2:
