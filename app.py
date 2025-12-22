@@ -392,8 +392,8 @@ if df_score is not None:
                         sc1, sc2 = st.columns([1, 2])
                         with sc1:
                             st.markdown(f"""
-                            <div style="background-color: #E3F2FD; padding: 20px; border-radius: 10px;">
-                                <h2 style="color: #1565C0; border: none;">{row['总成绩']} <span style="font-size: 16px; color: #555;">分</span></h2>
+                            <div style="background: #e0e0e0; padding: 20px; border-radius: 18px; box-shadow: 10px 10px 20px #bebebe, -10px -10px 20px #ffffff;">
+                                <h2 style="color: #3b3b3b; border: none; margin: 0 0 8px 0;">{row['总成绩']} <span style="font-size: 16px; color: #666666;">分</span></h2>
                                 <p><strong>姓名:</strong> {row['姓名']}</p>
                                 <p><strong>准考证号:</strong> {row['准考证号']}</p>
                             </div>
