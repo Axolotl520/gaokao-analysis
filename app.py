@@ -13,25 +13,41 @@ st.set_page_config(
 )
 
 # 读取字体文件并转换为 Base64
+@st.cache_data
 def get_font_base64(font_path):
     with open(font_path, "rb") as f:
         data = f.read()
     return base64.b64encode(data).decode()
 
 # 尝试加载字体
-font_path = os.path.join("static", "京華老宋体v3.0.ttf")
+app_dir = os.path.dirname(os.path.abspath(__file__))
+font_path = os.path.join(app_dir, "static", "京華老宋体v3.0.ttf")
 font_base64 = ""
-if os.path.exists(font_path):
-    font_base64 = get_font_base64(font_path)
+font_loaded = False
+font_error = None
+try:
+    if os.path.exists(font_path):
+        font_base64 = get_font_base64(font_path)
+        font_loaded = bool(font_base64)
+    else:
+        font_error = f"字体文件未找到: {font_path}"
+except Exception as e:
+    font_error = f"字体加载失败: {e}"
 
-# 自定义 CSS 美化
-st.markdown(f"""
-    <style>
+font_face_css = ""
+if font_loaded:
+    font_face_css = f"""
     /* 引入本地字体 (Base64 嵌入) */
     @font-face {{
         font-family: 'GlobalFont';
         src: url('data:font/ttf;base64,{font_base64}') format('truetype');
     }}
+    """
+
+# 自定义 CSS 美化
+st.markdown(f"""
+    <style>
+    {font_face_css}
 
     /* 全局字体优化 */
     html, body, .stApp, h1, h2, h3, h4, h5, h6, p, input, label, textarea {{
@@ -78,8 +94,9 @@ st.markdown(f"""
 col_header1, col_header2 = st.columns([1, 5])
 with col_header1:
     # 使用本地图片，如果不存在则使用 emoji
-    if os.path.exists("static/logo.png"):
-        st.image("static/logo.png", width=150)
+    logo_path = os.path.join(app_dir, "static", "logo.png")
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=150)
     else:
         st.markdown("# 🎓")
 with col_header2:
@@ -91,7 +108,9 @@ st.markdown("---")
 # 数据加载函数 (使用缓存提高性能)
 @st.cache_data
 def load_data():
-    base_path = "data"
+    # 确保从脚本所在目录读取资源，避免因启动目录不同导致找不到 data/static
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    base_path = os.path.join(app_dir, "data")
     
     # 1. 加载成绩数据
     score_file = os.path.join(base_path, "赋分后的高考模拟数据.csv")
@@ -109,7 +128,7 @@ def load_data():
             st.error("未找到成绩列，无法计算总分")
     else:
         st.error(f"文件未找到: {score_file}")
-        return None, None, None
+        return None, None, None, None
 
     # 2. 加载位次数据
     rank_file = os.path.join(base_path, "高考考生位次.csv")
