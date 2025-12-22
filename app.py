@@ -225,7 +225,7 @@ if df_score is not None:
                     template="plotly_white"
                 )
                 fig_hist.update_layout(bargap=0.1, showlegend=False)
-                st.plotly_chart(fig_hist, use_container_width=True)
+                st.plotly_chart(fig_hist, width='stretch')
             
         with c2:
             with st.container():
@@ -244,7 +244,7 @@ if df_score is not None:
                         title="各学科成绩箱线图",
                         template="plotly_white"
                     )
-                    st.plotly_chart(fig_box, use_container_width=True)
+                    st.plotly_chart(fig_box, width='stretch')
                 else:
                     st.info("未检测到分科成绩列，无法展示箱线图。")
 
@@ -298,7 +298,7 @@ if df_score is not None:
                                 ))
                                 fig_radar = px.line_polar(df_radar, r='r', theta='theta', line_close=True, title="学科能力雷达图", template="plotly_white")
                                 fig_radar.update_traces(fill='toself', line_color='#1E88E5')
-                                st.plotly_chart(fig_radar, use_container_width=True)
+                                st.plotly_chart(fig_radar, width='stretch')
             else:
                 st.warning("未找到匹配的学生信息，请检查输入是否正确。")
 
@@ -344,8 +344,8 @@ if df_score is not None:
                     
                     # 使用 data_editor 展示更美观的表格
                     st.dataframe(
-                        recommendations, 
-                        use_container_width=True,
+                        recommendations,
+                        width='stretch',
                         column_config={
                             "院校名称": st.column_config.TextColumn("院校名称", help="学校名称"),
                             score_col: st.column_config.ProgressColumn(
@@ -369,7 +369,7 @@ if df_score is not None:
                                 template="plotly_white",
                                 color_discrete_sequence=['#66BB6A']
                             )
-                            st.plotly_chart(fig_schools, use_container_width=True)
+                            st.plotly_chart(fig_schools, width='stretch')
                             
                 except Exception as e:
                     st.error(f"数据处理出错: {e}")
