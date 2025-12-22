@@ -74,23 +74,6 @@ st.markdown(f"""
         background: var(--bg) !important;
         color: var(--text) !important;
     }}
-
-    /* 顶部 topbar/header：去掉默认白底 */
-    header[data-testid="stHeader"],
-    div[data-testid="stToolbar"],
-    div[data-testid="stDecoration"] {{
-        background: var(--bg) !important;
-    }}
-    header[data-testid="stHeader"] {{
-        box-shadow: none !important;
-        border-bottom: none !important;
-    }}
-    /* 某些版本会给主容器一层白底，统一清理 */
-    div[data-testid="stAppViewContainer"],
-    div[data-testid="stMain"],
-    section.main {{
-        background: transparent !important;
-    }}
     html, body, .stApp, h1, h2, h3, h4, h5, h6, p, input, label, textarea {{
         font-family: 'GlobalFont', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
     }}
@@ -125,13 +108,6 @@ st.markdown(f"""
         margin: 10px;
         padding: 6px;
         box-shadow: inset 8px 8px 16px var(--shadow-dark), inset -8px -8px 16px var(--shadow-light);
-    }}
-    /* 侧边栏内层容器常带默认白底/圆角，避免叠成“双层圆角” */
-    section[data-testid="stSidebar"] > div,
-    section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {{
-        background: transparent !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
     }}
 
     /* 指标卡片（外凸 neumorphism） */
@@ -205,22 +181,6 @@ st.markdown(f"""
     button[role="tab"][aria-selected="true"] {{
         box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
         color: var(--text) !important;
-    }}
-
-    /* Tabs 容器/面板：去掉默认白底（解决四个 tab 左上角白块） */
-    div[data-testid="stTabs"],
-    div[data-testid="stTabs"] > div,
-    div[data-baseweb="tab-list"],
-    div[role="tabpanel"],
-    div[role="tabpanel"] > div {{
-        background: transparent !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-    }}
-
-    /* 有些 tab 上方会出现一条白色“底板”，强制同底色 */
-    div[data-baseweb="tab-list"] {{
-        background: var(--bg) !important;
     }}
 
     /* 分隔线淡化 */
