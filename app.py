@@ -25,10 +25,21 @@ font_path = os.path.join(app_dir, "static", "京華老宋体v3.0.ttf")
 font_base64 = ""
 font_loaded = False
 font_error = None
+
+# 说明：在 Streamlit Cloud 上把大字体文件以 Base64 内嵌到 CSS，
+# 可能导致首屏传输内容过大，触发 WebSocket 断开，从而表现为页面一直加载。
+# 因此默认仅在字体较小或显式开启时才进行内嵌。
+EMBED_FONT_MAX_BYTES = 200_000  # 约 200KB
+embed_font_for_css = os.environ.get("GAOKAO_EMBED_FONT", "0") == "1"
 try:
     if os.path.exists(font_path):
-        font_base64 = get_font_base64(font_path)
-        font_loaded = bool(font_base64)
+        font_size = os.path.getsize(font_path)
+        if embed_font_for_css or font_size <= EMBED_FONT_MAX_BYTES:
+            font_base64 = get_font_base64(font_path)
+            font_loaded = bool(font_base64)
+        else:
+            # 字体存在但不内嵌（使用后备字体），以提升线上稳定性
+            font_loaded = False
     else:
         font_error = f"字体文件未找到: {font_path}"
 except Exception as e:
