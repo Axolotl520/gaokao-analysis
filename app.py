@@ -60,43 +60,132 @@ st.markdown(f"""
     <style>
     {font_face_css}
 
-    /* 全局字体优化 */
+    :root {{
+        --bg: #e0e0e0;
+        --text: #3b3b3b;
+        --muted: #666666;
+        --shadow-dark: #bebebe;
+        --shadow-light: #ffffff;
+        --radius: 18px;
+    }}
+
+    /* 全局背景与字体 */
+    html, body, .stApp {{
+        background: var(--bg) !important;
+        color: var(--text) !important;
+    }}
     html, body, .stApp, h1, h2, h3, h4, h5, h6, p, input, label, textarea {{
         font-family: 'GlobalFont', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
     }}
-    
-    /* 标题样式 */
+
+    /* 标题（偏柔和、无强烈色块） */
+    h1, h2, h3 {{
+        color: var(--text) !important;
+        letter-spacing: 0.2px;
+    }}
     h1 {{
-        color: #1E88E5;
-        font-weight: 700;
+        font-weight: 750;
     }}
     h2 {{
-        color: #424242;
-        border-bottom: 2px solid #1E88E5;
-        padding-bottom: 10px;
+        font-weight: 700;
+        border-bottom: none;
+        padding-bottom: 0;
     }}
     h3 {{
-        color: #616161;
+        color: var(--muted) !important;
+        font-weight: 650;
     }}
-    
-    /* 指标卡片样式 */
-    div[data-testid="stMetric"] {{
-        background-color: #F5F5F5;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-        border-left: 5px solid #1E88E5;
+
+    /* 主体内容间距更“软”一点 */
+    .block-container {{
+        padding-top: 1.2rem;
     }}
-    
-    /* 侧边栏美化 */
+
+    /* 侧边栏（同底色 + 内凹） */
     section[data-testid="stSidebar"] {{
-        background-color: #f8f9fa;
+        background: var(--bg) !important;
+        border-radius: var(--radius);
+        margin: 10px;
+        padding: 6px;
+        box-shadow: inset 8px 8px 16px var(--shadow-dark), inset -8px -8px 16px var(--shadow-light);
     }}
-    
-    /* 按钮样式 */
+
+    /* 指标卡片（外凸 neumorphism） */
+    div[data-testid="stMetric"] {{
+        background: var(--bg);
+        border-radius: var(--radius);
+        padding: 16px 18px;
+        box-shadow: 10px 10px 20px var(--shadow-dark), -10px -10px 20px var(--shadow-light);
+        border: none;
+    }}
+    div[data-testid="stMetric"] label, div[data-testid="stMetric"] div {{
+        color: var(--text) !important;
+    }}
+
+    /* 信息/提示框：弱化边框，保持柔和 */
+    div[data-testid="stAlert"] {{
+        background: var(--bg);
+        border-radius: var(--radius);
+        border: none;
+        box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+    }}
+
+    /* 按钮（外凸 + 按下内凹） */
     .stButton>button {{
-        border-radius: 20px;
-        font-weight: bold;
+        background: var(--bg) !important;
+        color: var(--text) !important;
+        border: none !important;
+        border-radius: 999px;
+        padding: 0.55rem 1.1rem;
+        font-weight: 650;
+        box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+    }}
+    .stButton>button:active {{
+        box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+    }}
+
+    /* 输入控件（内凹） */
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextArea"] textarea {{
+        background: var(--bg) !important;
+        border: none !important;
+        border-radius: 999px !important;
+        box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+        color: var(--text) !important;
+    }}
+    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stNumberInput"] input:focus,
+    div[data-testid="stTextArea"] textarea:focus {{
+        outline: none !important;
+        box-shadow: inset 8px 8px 16px var(--shadow-dark), inset -8px -8px 16px var(--shadow-light);
+    }}
+
+    /* 下拉/多选（BaseWeb） */
+    div[data-baseweb="select"] > div {{
+        background: var(--bg) !important;
+        border: none !important;
+        border-radius: 999px !important;
+        box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+    }}
+
+    /* Tabs（柔和外凸） */
+    button[role="tab"] {{
+        background: var(--bg) !important;
+        border-radius: 999px !important;
+        margin-right: 8px;
+        box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+        color: var(--text) !important;
+        border: none !important;
+    }}
+    button[role="tab"][aria-selected="true"] {{
+        box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+        color: var(--text) !important;
+    }}
+
+    /* 分隔线淡化 */
+    hr {{
+        border-color: rgba(0,0,0,0.08) !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -224,7 +313,24 @@ if df_score is not None:
                     color_discrete_sequence=['#1E88E5'],
                     template="plotly_white"
                 )
-                fig_hist.update_layout(bargap=0.1, showlegend=False)
+                fig_hist.update_layout(
+                    bargap=0.1,
+                    showlegend=False,
+                    paper_bgcolor="#e0e0e0",
+                    plot_bgcolor="#e0e0e0",
+                    font=dict(color="#3b3b3b"),
+                    title_font=dict(color="#3b3b3b"),
+                )
+                fig_hist.update_xaxes(
+                    gridcolor="rgba(0,0,0,0.08)",
+                    linecolor="rgba(0,0,0,0.18)",
+                    zerolinecolor="rgba(0,0,0,0.08)",
+                )
+                fig_hist.update_yaxes(
+                    gridcolor="rgba(0,0,0,0.08)",
+                    linecolor="rgba(0,0,0,0.18)",
+                    zerolinecolor="rgba(0,0,0,0.08)",
+                )
                 st.plotly_chart(fig_hist, width='stretch')
             
         with c2:
@@ -243,6 +349,22 @@ if df_score is not None:
                         color="科目", 
                         title="各学科成绩箱线图",
                         template="plotly_white"
+                    )
+                    fig_box.update_layout(
+                        paper_bgcolor="#e0e0e0",
+                        plot_bgcolor="#e0e0e0",
+                        font=dict(color="#3b3b3b"),
+                        title_font=dict(color="#3b3b3b"),
+                    )
+                    fig_box.update_xaxes(
+                        gridcolor="rgba(0,0,0,0.08)",
+                        linecolor="rgba(0,0,0,0.18)",
+                        zerolinecolor="rgba(0,0,0,0.08)",
+                    )
+                    fig_box.update_yaxes(
+                        gridcolor="rgba(0,0,0,0.08)",
+                        linecolor="rgba(0,0,0,0.18)",
+                        zerolinecolor="rgba(0,0,0,0.08)",
                     )
                     st.plotly_chart(fig_box, width='stretch')
                 else:
@@ -298,6 +420,12 @@ if df_score is not None:
                                 ))
                                 fig_radar = px.line_polar(df_radar, r='r', theta='theta', line_close=True, title="学科能力雷达图", template="plotly_white")
                                 fig_radar.update_traces(fill='toself', line_color='#1E88E5')
+                                fig_radar.update_layout(
+                                    paper_bgcolor="#e0e0e0",
+                                    plot_bgcolor="#e0e0e0",
+                                    font=dict(color="#3b3b3b"),
+                                    title_font=dict(color="#3b3b3b"),
+                                )
                                 st.plotly_chart(fig_radar, width='stretch')
             else:
                 st.warning("未找到匹配的学生信息，请检查输入是否正确。")
@@ -368,6 +496,22 @@ if df_score is not None:
                                 title="推荐院校频次 (Top 10)",
                                 template="plotly_white",
                                 color_discrete_sequence=['#66BB6A']
+                            )
+                            fig_schools.update_layout(
+                                paper_bgcolor="#e0e0e0",
+                                plot_bgcolor="#e0e0e0",
+                                font=dict(color="#3b3b3b"),
+                                title_font=dict(color="#3b3b3b"),
+                            )
+                            fig_schools.update_xaxes(
+                                gridcolor="rgba(0,0,0,0.08)",
+                                linecolor="rgba(0,0,0,0.18)",
+                                zerolinecolor="rgba(0,0,0,0.08)",
+                            )
+                            fig_schools.update_yaxes(
+                                gridcolor="rgba(0,0,0,0.08)",
+                                linecolor="rgba(0,0,0,0.18)",
+                                zerolinecolor="rgba(0,0,0,0.08)",
                             )
                             st.plotly_chart(fig_schools, width='stretch')
                             
