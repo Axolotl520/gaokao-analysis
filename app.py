@@ -123,22 +123,31 @@ def load_data():
     app_dir = os.path.dirname(os.path.abspath(__file__))
     base_path = os.path.join(app_dir, "data")
     
-    # 1. 加载成绩数据
-    score_file = os.path.join(base_path, "赋分后的高考模拟数据.csv")
-    if os.path.exists(score_file):
+    # 1. 加载成绩数据（优先使用带三科的文件，如果存在）
+    candidate_files = [
+        "赋分后的高考模拟数据_with_sciences.csv",
+        "赋分后的高考模拟数据.csv",
+    ]
+    score_file = None
+    for fn in candidate_files:
+        path = os.path.join(base_path, fn)
+        if os.path.exists(path):
+            score_file = path
+            break
+
+    if score_file:
         df_score = pd.read_csv(score_file)
-        # 计算总成绩: 语数英 + 赋分科目
-        # 识别赋分列 (假设列名包含'赋分') 和 主科
+        # 计算总成绩: 语数英 + 赋分科目（支持新增的物理/化学/生物赋分列）
         fufen_cols = [c for c in df_score.columns if '赋分' in c]
         main_cols = ['语文', '数学', '英语']
         calc_cols = [c for c in main_cols + fufen_cols if c in df_score.columns]
-        
+
         if calc_cols:
             df_score['总成绩'] = df_score[calc_cols].sum(axis=1)
         else:
             st.error("未找到成绩列，无法计算总分")
     else:
-        st.error(f"文件未找到: {score_file}")
+        st.error(f"未找到成绩文件（尝试过: {candidate_files}）")
         return None, None, None, None
 
     # 2. 加载位次数据
