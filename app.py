@@ -3,6 +3,25 @@ import pandas as pd
 import plotly.express as px
 import os
 import base64
+import requests
+import numpy as np
+import json
+
+
+CORE_150_COLS = ["语文", "数学", "英语"]
+ELECTIVE_FUFEN_COLS = [
+    "历史赋分",
+    "地理赋分",
+    "政治赋分",
+    "物理赋分",
+    "化学赋分",
+    "生物赋分",
+    "技术赋分",
+]
+ELECTIVE_SUBJECTS = ["历史", "地理", "政治", "物理", "化学", "生物", "技术"]
+
+DEFAULT_AI_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+DEFAULT_AI_MODEL = "qwen-plus"
 
 # 设置页面配置
 st.set_page_config(
@@ -117,8 +136,29 @@ with col_header2:
 st.markdown("---")
 
 # 数据加载函数 (使用缓存提高性能)
+def _data_cache_buster() -> float:
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    base_path = os.path.join(app_dir, "data")
+    candidates = [
+        "赋分后的高考模拟数据_with_sciences.csv",
+        "赋分后的高考模拟数据.csv",
+        "高考考生位次.csv",
+        "招生计划.csv",
+        "志愿填报结果.csv",
+    ]
+    mtimes = []
+    for fn in candidates:
+        path = os.path.join(base_path, fn)
+        if os.path.exists(path):
+            try:
+                mtimes.append(os.path.getmtime(path))
+            except OSError:
+                pass
+    return float(max(mtimes)) if mtimes else 0.0
+
+
 @st.cache_data
-def load_data():
+def load_data(cache_buster: float):
     # 确保从脚本所在目录读取资源，避免因启动目录不同导致找不到 data/static
     app_dir = os.path.dirname(os.path.abspath(__file__))
     base_path = os.path.join(app_dir, "data")
@@ -137,15 +177,25 @@ def load_data():
 
     if score_file:
         df_score = pd.read_csv(score_file)
-        # 计算总成绩: 语数英 + 赋分科目（支持新增的物理/化学/生物赋分列）
-        fufen_cols = [c for c in df_score.columns if '赋分' in c]
-        main_cols = ['语文', '数学', '英语']
-        calc_cols = [c for c in main_cols + fufen_cols if c in df_score.columns]
+        # 计算总成绩（浙江3+3）：语数英原始分(150) + 选考等级分(100)中的最高三门
+        for c in CORE_150_COLS:
+            if c not in df_score.columns:
+                st.error(f"未找到成绩列: {c}")
+                return None, None, None, None
 
-        if calc_cols:
-            df_score['总成绩'] = df_score[calc_cols].sum(axis=1)
+        main = df_score[CORE_150_COLS].apply(pd.to_numeric, errors="coerce")
+        elective_cols = [c for c in ELECTIVE_FUFEN_COLS if c in df_score.columns]
+
+        if elective_cols:
+            elective = df_score[elective_cols].apply(pd.to_numeric, errors="coerce")
+            vals = elective.to_numpy(dtype=float)
+            vals = np.where(np.isnan(vals), -np.inf, vals)
+            top3 = np.sort(vals, axis=1)[:, -3:]
+            top3_sum = np.where(np.isneginf(top3), 0.0, top3).sum(axis=1)
         else:
-            st.error("未找到成绩列，无法计算总分")
+            top3_sum = 0.0
+
+        df_score["总成绩"] = main.sum(axis=1) + top3_sum
     else:
         st.error(f"未找到成绩文件（尝试过: {candidate_files}）")
         return None, None, None, None
@@ -173,8 +223,8 @@ def load_data():
         
     return df_score, df_rank, df_plan, df_vol
 
-# 加载数据
-df_score, df_rank, df_plan, df_vol = load_data()
+# 加载数据（cache_buster 用于当 CSV 更新后自动刷新缓存）
+df_score, df_rank, df_plan, df_vol = load_data(_data_cache_buster())
 
 if df_score is not None:
     # 侧边栏 - 全局筛选
@@ -198,6 +248,81 @@ if df_score is not None:
         st.markdown("### 📊 数据概览")
         st.write(f"当前展示人数: **{len(df_filtered)}**")
         st.progress(len(df_filtered) / len(df_score))
+
+        st.markdown("---")
+        st.markdown("### 🤖 AI 助手")
+
+        default_system_prompt = (
+            "你是‘浙江 2025 高考模拟与志愿填报’AI 助手。\n"
+            "环境约束与背景：\n"
+            "- 浙江新高考 3+3，总分 750。统考：语文/数学/外语各 150（原始分）。\n"
+            "- 选考：历史/地理/政治/物理/化学/生物/技术，考生只选 3 门，每门满分 100（等级赋分）。\n"
+            "- 当前系统内的成绩与志愿数据为模拟数据；你的建议仅供参考，不替代官方信息与个人咨询。\n\n"
+            "回答规则：\n"
+            "- 优先给出可执行步骤与检查点；涉及分数/位次/志愿时，先说明使用了哪些输入与假设。\n"
+            "- 如用户未提供必要信息（如省份、科目组合、分数/位次、目标地区/专业），先问 1-3 个关键澄清问题。\n"
+            "- 避免编造政策细节；不确定时明确说明‘基于模拟数据/通用规则’。"
+        )
+
+        api_base_url = os.environ.get("AI_BASE_URL", DEFAULT_AI_BASE_URL)
+        api_model = os.environ.get("AI_MODEL", DEFAULT_AI_MODEL)
+
+        # API Key 仅从 secrets/env 读取，避免写入代码或展示在 UI
+        api_key = ""
+        try:
+            api_key = st.secrets.get("AI_API_KEY", "")
+        except Exception:
+            api_key = ""
+        api_key = api_key or os.environ.get("AI_API_KEY", "")
+
+        if "ai_messages" not in st.session_state:
+            st.session_state.ai_messages = [
+                {"role": "system", "content": os.environ.get("AI_SYSTEM_PROMPT", default_system_prompt)}
+            ]
+
+        def _call_openai_compatible(messages):
+            if not api_base_url or not api_key:
+                raise ValueError("AI 未配置：请在 Streamlit secrets 或环境变量中设置 AI_API_KEY")
+
+            base = api_base_url.rstrip("/")
+            if base.endswith("/v1"):
+                url = f"{base}/chat/completions"
+            else:
+                url = f"{base}/v1/chat/completions"
+
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+            payload = {
+                "model": api_model,
+                "messages": messages,
+                "temperature": 0.2,
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+
+        with st.container(height=300):
+            for m in st.session_state.ai_messages:
+                if m["role"] == "system":
+                    continue
+                with st.chat_message(m["role"]):
+                    st.markdown(m["content"])
+
+        user_prompt = st.chat_input("输入你的问题…")
+        if user_prompt and user_prompt.strip():
+            st.session_state.ai_messages.append({"role": "user", "content": user_prompt.strip()})
+            try:
+                with st.spinner("AI 思考中..."):
+                    answer = _call_openai_compatible(st.session_state.ai_messages)
+                st.session_state.ai_messages.append({"role": "assistant", "content": answer})
+                st.rerun()
+            except Exception as e:
+                st.session_state.ai_messages.append({"role": "assistant", "content": f"调用失败：{e}"})
+                st.rerun()
 
     # 创建标签页
     tab1, tab2, tab3, tab4 = st.tabs(["📈 成绩整体分析", "🔍 个人成绩查询", "🏫 志愿填报参考", "🎓 录取模拟"])
@@ -299,15 +424,31 @@ if df_score is not None:
                         
                         with sc2:
                             # 雷达图展示各科能力
-                            if subjects:
-                                scores = [row[s] for s in subjects]
-                                df_radar = pd.DataFrame(dict(
-                                    r=scores,
-                                    theta=subjects
-                                ))
-                                fig_radar = px.line_polar(df_radar, r='r', theta='theta', line_close=True, title="学科能力雷达图", template="plotly_white")
-                                fig_radar.update_traces(fill='toself', line_color='#1E88E5')
+                            elective_for_student = [
+                                c for c in ELECTIVE_FUFEN_COLS
+                                if c in df_score.columns and pd.notna(row.get(c))
+                            ]
+                            core_for_radar = [c for c in CORE_150_COLS if c in df_score.columns and pd.notna(row.get(c))]
+
+                            if core_for_radar and elective_for_student:
+                                scores = [row[c] for c in core_for_radar] + [row[c] for c in elective_for_student]
+                                labels = core_for_radar + [c.replace("赋分", "") for c in elective_for_student]
+
+                                # 确保是数值
+                                scores = pd.to_numeric(pd.Series(scores), errors="coerce").fillna(0).tolist()
+                                df_radar = pd.DataFrame({"r": scores, "theta": labels})
+                                fig_radar = px.line_polar(
+                                    df_radar,
+                                    r="r",
+                                    theta="theta",
+                                    line_close=True,
+                                    title="学科能力雷达图（语数英 + 选考赋分）",
+                                    template="plotly_white",
+                                )
+                                fig_radar.update_traces(fill="toself", line_color="#1E88E5")
                                 st.plotly_chart(fig_radar, width='stretch')
+                            else:
+                                st.info("未检测到该考生完整的主课/选考数据。")
             else:
                 st.warning("未找到匹配的学生信息，请检查输入是否正确。")
 
@@ -392,35 +533,43 @@ if df_score is not None:
             
             with sub_tab2:
                 st.info("💡 输入您的详细成绩，我们将计算总分并推荐适合的学校和专业。")
-                
+
+                chosen = st.multiselect(
+                    "选择 3 门选考科目（历史/地理/政治/物理/化学/生物/技术）",
+                    options=ELECTIVE_SUBJECTS,
+                    default=["物理", "化学", "生物"],
+                    max_selections=3,
+                )
+
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     chinese = st.number_input("语文原始分", min_value=0, max_value=150, value=100)
                     math = st.number_input("数学原始分", min_value=0, max_value=150, value=100)
                     english = st.number_input("英语原始分", min_value=0, max_value=150, value=100)
+
+                elective_scores = {}
                 with col2:
-                    physics = st.number_input("物理原始分", min_value=0, max_value=100, value=80)
-                    chemistry = st.number_input("化学原始分", min_value=0, max_value=100, value=80)
-                    biology = st.number_input("生物原始分", min_value=0, max_value=100, value=80)
+                    st.caption("选考请输入‘等级分(40-100)’")
+                    for subj in chosen:
+                        elective_scores[subj] = st.number_input(
+                            f"{subj} 等级分",
+                            min_value=40,
+                            max_value=100,
+                            value=80,
+                            step=1,
+                        )
+
                 with col3:
-                    # 计算赋分和总分 (赋分成绩从100分向下递减)
-                    chinese_fufen = round(chinese * (100/150), 1)  # 语文满分150分，赋分满分100分
-                    math_fufen = round(math * (100/150), 1)       # 数学满分150分，赋分满分100分
-                    english_fufen = round(english * (100/150), 1)  # 英语满分150分，赋分满分100分
-                    physics_fufen = round(physics * 1.0, 1)        # 物理满分100分，赋分满分100分
-                    chemistry_fufen = round(chemistry * 1.0, 1)    # 化学满分100分，赋分满分100分
-                    biology_fufen = round(biology * 1.0, 1)        # 生物满分100分，赋分满分100分
-                    
-                    total_score = chinese_fufen + math_fufen + english_fufen + physics_fufen + chemistry_fufen + biology_fufen
-                    
-                    st.metric("总成绩", f"{total_score:.1f} 分")
-                    st.write("赋分详情:")
-                    st.write(f"语文赋分: {chinese_fufen}")
-                    st.write(f"数学赋分: {math_fufen}")
-                    st.write(f"英语赋分: {english_fufen}")
-                    st.write(f"物理赋分: {physics_fufen}")
-                    st.write(f"化学赋分: {chemistry_fufen}")
-                    st.write(f"生物赋分: {biology_fufen}")
+                    if len(chosen) != 3:
+                        st.warning("请先选择 3 门选考科目")
+                    total_score = float(chinese + math + english + sum(elective_scores.values()))
+                    st.metric("总成绩", f"{total_score:.0f} 分")
+                    st.write("计分明细:")
+                    st.write(f"语文: {chinese}")
+                    st.write(f"数学: {math}")
+                    st.write(f"英语: {english}")
+                    for subj, sc in elective_scores.items():
+                        st.write(f"{subj}: {sc}")
                 
                 if st.button("🔍 生成推荐", type="primary"):
                     # 使用计算的总分进行推荐
