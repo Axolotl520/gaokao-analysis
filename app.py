@@ -399,9 +399,9 @@ if df_score is not None:
                     math = st.number_input("数学原始分", min_value=0, max_value=150, value=100)
                     english = st.number_input("英语原始分", min_value=0, max_value=150, value=100)
                 with col2:
-                    physics = st.number_input("物理原始分", min_value=0, max_value=150, value=100)
-                    chemistry = st.number_input("化学原始分", min_value=0, max_value=150, value=100)
-                    biology = st.number_input("生物原始分", min_value=0, max_value=150, value=100)
+                    physics = st.number_input("物理原始分", min_value=0, max_value=100, value=80)
+                    chemistry = st.number_input("化学原始分", min_value=0, max_value=100, value=80)
+                    biology = st.number_input("生物原始分", min_value=0, max_value=100, value=80)
                 with col3:
                     # 计算赋分和总分
                     chinese_fufen = round(chinese * 0.8, 1)

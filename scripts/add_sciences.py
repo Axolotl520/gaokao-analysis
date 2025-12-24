@@ -23,13 +23,13 @@ else:
     bio_f = []
 
     for _, row in df.iterrows():
-        # 基于数学和英语生成三科原始分，带一点随机性
+        # 基于数学和英语生成三科原始分，带一点随机性 (物化生满分100分)
         math = row.get('数学', 80)
         eng = row.get('英语', 80)
-        base_mean = (float(math) * 0.6 + float(eng) * 0.4) * 0.9
-        p = int(max(0, min(150, round(base_mean + random.gauss(0, 10)))))
-        c = int(max(0, min(150, round(base_mean + random.gauss(0, 10)))))
-        b = int(max(0, min(150, round(base_mean + random.gauss(0, 10)))))
+        base_mean = (float(math) * 0.6 + float(eng) * 0.4) * 0.6  # 调整比例以适应100分满分
+        p = int(max(0, min(100, round(base_mean + random.gauss(0, 8)))))
+        c = int(max(0, min(100, round(base_mean + random.gauss(0, 8)))))
+        b = int(max(0, min(100, round(base_mean + random.gauss(0, 8)))))
 
         # 简单赋分规则：赋分 = round(原始 * 0.8)（示例）
         pf = round(p * 0.8, 1)
