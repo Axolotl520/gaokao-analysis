@@ -316,75 +316,168 @@ if df_score is not None:
         st.header("🏫 智能志愿推荐参考")
         
         if df_plan is not None:
-            st.info("💡 基于您的总成绩和位次，筛选历年录取情况（模拟数据）。")
+            # 子标签页：总分推荐 和 详细成绩推荐
+            sub_tab1, sub_tab2 = st.tabs(["📊 基于总分推荐", "📝 输入详细成绩推荐"])
             
-            col_input, col_help = st.columns([1, 2])
-            with col_input:
-                my_score = st.number_input("输入你的预估总分", min_value=0, max_value=750, value=int(df_filtered['总成绩'].mean()))
+            with sub_tab1:
+                st.info("💡 基于您的总成绩和位次，筛选历年录取情况（模拟数据）。")
+                
+                col_input, col_help = st.columns([1, 2])
+                with col_input:
+                    my_score = st.number_input("输入你的预估总分", min_value=0, max_value=750, value=int(df_filtered['总成绩'].mean()))
+                
+                # 简单的推荐逻辑：推荐 录取分 <= 我的分数 的学校，且分差在一定范围内
+                # 假设招生计划表有 '最低投档分' 或类似字段
+                # 先检查列名
+                # st.write(df_plan.columns) # 调试用
+                
+                # 尝试寻找分数线列
+                score_col = None
+                for col in df_plan.columns:
+                    if '分' in col:
+                        score_col = col
+                        break
+                
+                if score_col:
+                    # 筛选逻辑： 录取分 <= 我的分数 且 录取分 > 我的分数 - 30 (冲稳保的简单模拟)
+                    # 注意：实际数据中可能是字符串或含有非数字，需要处理
+                    try:
+                        # 清洗数据，确保是数字
+                        df_plan_clean = df_plan.copy()
+                        df_plan_clean[score_col] = pd.to_numeric(df_plan_clean[score_col], errors='coerce')
+                        df_plan_clean = df_plan_clean.dropna(subset=[score_col])
+                        
+                        # 推荐区间：[我的分数-40, 我的分数+10] (可以冲一点，也可以保底)
+                        recommendations = df_plan_clean[
+                            (df_plan_clean[score_col] <= my_score + 10) & 
+                            (df_plan_clean[score_col] >= my_score - 40)
+                        ].sort_values(by=score_col, ascending=False)
+                        
+                        st.write(f"为您推荐 **{len(recommendations)}** 个可能的志愿方向 (分数范围: {my_score-40} - {my_score+10}):")
+                        
+                        # 使用 data_editor 展示更美观的表格
+                        st.dataframe(
+                            recommendations,
+                            width='stretch',
+                            column_config={
+                                "院校名称": st.column_config.TextColumn("院校名称", help="学校名称"),
+                                score_col: st.column_config.ProgressColumn(
+                                    "最低投档分",
+                                    help="历年最低投档分数",
+                                    format="%d",
+                                    min_value=0,
+                                    max_value=750,
+                                ),
+                            }
+                        )
+                        
+                        if not recommendations.empty:
+                            # 简单的统计图
+                            if '院校名称' in recommendations.columns:
+                                top_schools = recommendations['院校名称'].value_counts().head(10)
+                                fig_schools = px.bar(
+                                    x=top_schools.index, 
+                                    y=top_schools.values, 
+                                    title="推荐院校频次 (Top 10)",
+                                    template="plotly_white",
+                                    color_discrete_sequence=['#66BB6A']
+                                )
+                                st.plotly_chart(fig_schools, width='stretch')
+                                
+                    except Exception as e:
+                        st.error(f"数据处理出错: {e}")
+                else:
+                    st.warning("在招生计划表中未找到分数线相关列，无法自动推荐。请检查数据源。")
+                    st.dataframe(df_plan.head())
             
-            # 简单的推荐逻辑：推荐 录取分 <= 我的分数 的学校，且分差在一定范围内
-            # 假设招生计划表有 '最低投档分' 或类似字段
-            # 先检查列名
-            # st.write(df_plan.columns) # 调试用
-            
-            # 尝试寻找分数线列
-            score_col = None
-            for col in df_plan.columns:
-                if '分' in col:
-                    score_col = col
-                    break
-            
-            if score_col:
-                # 筛选逻辑： 录取分 <= 我的分数 且 录取分 > 我的分数 - 30 (冲稳保的简单模拟)
-                # 注意：实际数据中可能是字符串或含有非数字，需要处理
-                try:
-                    # 清洗数据，确保是数字
-                    df_plan_clean = df_plan.copy()
-                    df_plan_clean[score_col] = pd.to_numeric(df_plan_clean[score_col], errors='coerce')
-                    df_plan_clean = df_plan_clean.dropna(subset=[score_col])
+            with sub_tab2:
+                st.info("💡 输入您的详细成绩，我们将计算总分并推荐适合的学校和专业。")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    chinese = st.number_input("语文原始分", min_value=0, max_value=150, value=100)
+                    math = st.number_input("数学原始分", min_value=0, max_value=150, value=100)
+                    english = st.number_input("英语原始分", min_value=0, max_value=150, value=100)
+                with col2:
+                    physics = st.number_input("物理原始分", min_value=0, max_value=100, value=80)
+                    chemistry = st.number_input("化学原始分", min_value=0, max_value=100, value=80)
+                    biology = st.number_input("生物原始分", min_value=0, max_value=100, value=80)
+                with col3:
+                    # 计算赋分和总分 (赋分成绩从100分向下递减)
+                    chinese_fufen = round(chinese * (100/150), 1)  # 语文满分150分，赋分满分100分
+                    math_fufen = round(math * (100/150), 1)       # 数学满分150分，赋分满分100分
+                    english_fufen = round(english * (100/150), 1)  # 英语满分150分，赋分满分100分
+                    physics_fufen = round(physics * 1.0, 1)        # 物理满分100分，赋分满分100分
+                    chemistry_fufen = round(chemistry * 1.0, 1)    # 化学满分100分，赋分满分100分
+                    biology_fufen = round(biology * 1.0, 1)        # 生物满分100分，赋分满分100分
                     
-                    # 推荐区间：[我的分数-40, 我的分数+10] (可以冲一点，也可以保底)
-                    recommendations = df_plan_clean[
-                        (df_plan_clean[score_col] <= my_score + 10) & 
-                        (df_plan_clean[score_col] >= my_score - 40)
-                    ].sort_values(by=score_col, ascending=False)
+                    total_score = chinese_fufen + math_fufen + english_fufen + physics_fufen + chemistry_fufen + biology_fufen
                     
-                    st.write(f"为您推荐 **{len(recommendations)}** 个可能的志愿方向 (分数范围: {my_score-40} - {my_score+10}):")
+                    st.metric("总成绩", f"{total_score:.1f} 分")
+                    st.write("赋分详情:")
+                    st.write(f"语文赋分: {chinese_fufen}")
+                    st.write(f"数学赋分: {math_fufen}")
+                    st.write(f"英语赋分: {english_fufen}")
+                    st.write(f"物理赋分: {physics_fufen}")
+                    st.write(f"化学赋分: {chemistry_fufen}")
+                    st.write(f"生物赋分: {biology_fufen}")
+                
+                if st.button("🔍 生成推荐", type="primary"):
+                    # 使用计算的总分进行推荐
+                    my_score = total_score
                     
-                    # 使用 data_editor 展示更美观的表格
-                    st.dataframe(
-                        recommendations,
-                        width='stretch',
-                        column_config={
-                            "院校名称": st.column_config.TextColumn("院校名称", help="学校名称"),
-                            score_col: st.column_config.ProgressColumn(
-                                "最低投档分",
-                                help="历年最低投档分数",
-                                format="%d",
-                                min_value=0,
-                                max_value=750,
-                            ),
-                        }
-                    )
+                    score_col = None
+                    for col in df_plan.columns:
+                        if '分' in col:
+                            score_col = col
+                            break
                     
-                    if not recommendations.empty:
-                        # 简单的统计图
-                        if '院校名称' in recommendations.columns:
-                            top_schools = recommendations['院校名称'].value_counts().head(10)
-                            fig_schools = px.bar(
-                                x=top_schools.index, 
-                                y=top_schools.values, 
-                                title="推荐院校频次 (Top 10)",
-                                template="plotly_white",
-                                color_discrete_sequence=['#66BB6A']
-                            )
-                            st.plotly_chart(fig_schools, width='stretch')
+                    if score_col:
+                        try:
+                            df_plan_clean = df_plan.copy()
+                            df_plan_clean[score_col] = pd.to_numeric(df_plan_clean[score_col], errors='coerce')
+                            df_plan_clean = df_plan_clean.dropna(subset=[score_col])
                             
-                except Exception as e:
-                    st.error(f"数据处理出错: {e}")
-            else:
-                st.warning("在招生计划表中未找到分数线相关列，无法自动推荐。请检查数据源。")
-                st.dataframe(df_plan.head())
+                            # 推荐区间：[我的分数-40, 我的分数+10]
+                            recommendations = df_plan_clean[
+                                (df_plan_clean[score_col] <= my_score + 10) & 
+                                (df_plan_clean[score_col] >= my_score - 40)
+                            ].sort_values(by=score_col, ascending=False)
+                            
+                            st.success(f"为您推荐 **{len(recommendations)}** 个可能的志愿方向 (分数范围: {my_score-40:.1f} - {my_score+10:.1f}):")
+                            
+                            st.dataframe(
+                                recommendations,
+                                width='stretch',
+                                column_config={
+                                    "院校名称": st.column_config.TextColumn("院校名称", help="学校名称"),
+                                    "专业名称": st.column_config.TextColumn("专业名称", help="专业名称"),
+                                    score_col: st.column_config.ProgressColumn(
+                                        "最低投档分",
+                                        help="历年最低投档分数",
+                                        format="%.1f",
+                                        min_value=0,
+                                        max_value=750,
+                                    ),
+                                }
+                            )
+                            
+                            if not recommendations.empty:
+                                # 按学校分组显示
+                                school_recs = recommendations.groupby('院校名称').size().sort_values(ascending=False).head(10)
+                                fig_schools = px.bar(
+                                    x=school_recs.index, 
+                                    y=school_recs.values, 
+                                    title="推荐院校频次 (Top 10)",
+                                    template="plotly_white",
+                                    color_discrete_sequence=['#66BB6A']
+                                )
+                                st.plotly_chart(fig_schools, width='stretch')
+                                
+                        except Exception as e:
+                            st.error(f"数据处理出错: {e}")
+                    else:
+                        st.warning("在招生计划表中未找到分数线相关列，无法自动推荐。请检查数据源。")
         else:
             st.warning("缺少招生计划数据文件 (招生计划.csv)，无法进行志愿推荐。")
 

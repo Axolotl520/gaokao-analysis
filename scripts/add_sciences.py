@@ -23,18 +23,18 @@ else:
     bio_f = []
 
     for _, row in df.iterrows():
-        # 基于数学和英语生成三科原始分，带一点随机性
+        # 基于数学和英语生成三科原始分，带一点随机性 (物化生满分100分)
         math = row.get('数学', 80)
         eng = row.get('英语', 80)
-        base_mean = (float(math) * 0.6 + float(eng) * 0.4) * 0.9
-        p = int(max(0, min(150, round(base_mean + random.gauss(0, 10)))))
-        c = int(max(0, min(150, round(base_mean + random.gauss(0, 10)))))
-        b = int(max(0, min(150, round(base_mean + random.gauss(0, 10)))))
+        base_mean = (float(math) * 0.6 + float(eng) * 0.4) * 0.6  # 调整比例以适应100分满分
+        p = int(max(0, min(100, round(base_mean + random.gauss(0, 8)))))
+        c = int(max(0, min(100, round(base_mean + random.gauss(0, 8)))))
+        b = int(max(0, min(100, round(base_mean + random.gauss(0, 8)))))
 
-        # 简单赋分规则：赋分 = round(原始 * 0.8)（示例）
-        pf = round(p * 0.8, 1)
-        cf = round(c * 0.8, 1)
-        bf = round(b * 0.8, 1)
+        # 赋分规则：赋分成绩从100分向下递减，所有科目赋分都在0-100分范围内
+        pf = round(p * 1.0, 1)  # 物化生满分100分，直接使用原始分
+        cf = round(c * 1.0, 1)
+        bf = round(b * 1.0, 1)
 
         phys.append(p)
         chem.append(c)
@@ -49,6 +49,12 @@ else:
     df['物理赋分'] = phys_f
     df['化学赋分'] = chem_f
     df['生物赋分'] = bio_f
+
+    # 重新计算所有科目的赋分，确保都在0-100分范围内
+    print('重新计算所有赋分列...')
+    df['历史赋分'] = df['历史原始'].apply(lambda x: round(float(x) * (100/100), 1) if pd.notna(x) else 0)  # 假设历史满分100分
+    df['地理赋分'] = df['地理原始'].apply(lambda x: round(float(x) * (100/100), 1) if pd.notna(x) else 0)  # 假设地理满分100分
+    df['政治赋分'] = df['政治原始'].apply(lambda x: round(float(x) * (100/100), 1) if pd.notna(x) else 0)  # 假设政治满分100分
 
     df.to_csv(output_path, index=False)
     print('写入完成:', output_path)
