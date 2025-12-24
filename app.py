@@ -403,13 +403,13 @@ if df_score is not None:
                     chemistry = st.number_input("化学原始分", min_value=0, max_value=100, value=80)
                     biology = st.number_input("生物原始分", min_value=0, max_value=100, value=80)
                 with col3:
-                    # 计算赋分和总分
-                    chinese_fufen = round(chinese * 0.8, 1)
-                    math_fufen = round(math * 0.8, 1)
-                    english_fufen = round(english * 0.8, 1)
-                    physics_fufen = round(physics * 0.8, 1)
-                    chemistry_fufen = round(chemistry * 0.8, 1)
-                    biology_fufen = round(biology * 0.8, 1)
+                    # 计算赋分和总分 (赋分成绩从100分向下递减)
+                    chinese_fufen = round(chinese * (100/150), 1)  # 语文满分150分，赋分满分100分
+                    math_fufen = round(math * (100/150), 1)       # 数学满分150分，赋分满分100分
+                    english_fufen = round(english * (100/150), 1)  # 英语满分150分，赋分满分100分
+                    physics_fufen = round(physics * 1.0, 1)        # 物理满分100分，赋分满分100分
+                    chemistry_fufen = round(chemistry * 1.0, 1)    # 化学满分100分，赋分满分100分
+                    biology_fufen = round(biology * 1.0, 1)        # 生物满分100分，赋分满分100分
                     
                     total_score = chinese_fufen + math_fufen + english_fufen + physics_fufen + chemistry_fufen + biology_fufen
                     
